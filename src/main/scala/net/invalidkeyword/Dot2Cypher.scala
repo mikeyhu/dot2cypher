@@ -22,7 +22,7 @@ case class CreateNode(nodeName:String) {
 }
 
 case class CreateRelationship(nodeFrom:CreateNode, relationship:String, nodeTo:CreateNode) {
-  override def toString = s"CREATE (${nodeFrom.variableName}})-[:${relationship}]->(${nodeTo.variableName}})"
+  override def toString = s"CREATE (${nodeFrom.variableName})-[:${relationship}]->(${nodeTo.variableName})"
 }
 
 
@@ -37,7 +37,7 @@ object Dot2Cypher {
   }
 
   def parseGraph() : Graph = {
-    val reader = new InputStreamReader(new FileInputStream("/Users/mikeyhu/tmp/code-graphs/core-2011.dot"))
+    val reader = new InputStreamReader(new FileInputStream("/Users/mikeyhu/tmp/code-graphs/core-current.dot"))
 
     val parser = new DotAstParser
     import parser._
@@ -49,13 +49,15 @@ object Dot2Cypher {
   def convertToCypher(element: Graph) = {
 
 
-    element.statements.foreach{
-      case NodeStatement(nodeId,attributes) => println("Node : " + displayNode(nodeId))
-      //case EdgeStatement(nodeFrom,nodes,attributes) => println("Edge : " + displayRelationship(nodeFrom.asInstanceOf[NodeStatement],nodes.head))
-      case EdgeStatement(nodeFrom,nodesTo,_) => nodesTo.foreach { nodeTo => println(displayRelationship(nodeFrom.asInstanceOf[NodeId],nodeTo._2.asInstanceOf[NodeId]))}
-      case other => println("Unknown : " + other)
+    val results: Seq[CreateRelationship] = element.statements.flatMap {
+      //unnecessary here
+      //case NodeStatement(nodeId,attributes) => displayNode(nodeId)
+      case EdgeStatement(nodeFrom,nodesTo,_) => nodesTo.map { nodeTo => displayRelationship(nodeFrom.asInstanceOf[NodeId],nodeTo._2.asInstanceOf[NodeId])}
+      case other => None
     }
-
+    val setOfCreates: Set[CreateNode] = results.flatMap(cr => Set(cr.nodeFrom,cr.nodeTo)).toSet
+    setOfCreates.foreach(println(_))
+    results.foreach(println(_))
   }
 
   def displayNode(node : NodeId) = {
