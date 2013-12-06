@@ -1,24 +1,18 @@
 package net.invalidkeyword
 
-/**
- * Created with IntelliJ IDEA.
- * User: mikeyhu
- * Date: 22/11/2013
- * Time: 17:06
- * To change this template use File | Settings | File Templates.
- */
-
-import uk.co.turingatemyhamster.graphvizs._
 import uk.co.turingatemyhamster.graphvizs.dsl._
-import java.io.{InputStreamReader, FileInputStream, Reader}
-import uk.co.turingatemyhamster.graphvizs.dsl.ID.Identifier
-import uk.co.turingatemyhamster.graphvizs.dsl.Node
-import uk.co.turingatemyhamster.graphvizs.dsl.StatementType.Node
-import uk.co.turingatemyhamster.graphvizs.dsl.Node
+import java.io.{InputStreamReader, FileInputStream}
+
 
 case class CreateNode(nodeName:String) {
   val variableName = nodeName.toLowerCase().replaceAll(" ","")
   override def toString = s"CREATE (${variableName}:Class {name:'${nodeName}'})"
+}
+
+case object CreateNode {
+  def apply(id:ID) : CreateNode = id match {
+    case ID.Identifier(value) => CreateNode(value)
+  }
 }
 
 case class CreateRelationship(nodeFrom:CreateNode, relationship:String, nodeTo:CreateNode) {
@@ -29,15 +23,10 @@ case class CreateRelationship(nodeFrom:CreateNode, relationship:String, nodeTo:C
 object Dot2Cypher {
 
 
-  def main(args:Array[String]) = {
-
-
-    convertToCypher(parseGraph())
-
-  }
+  def main(args:Array[String]) = convertToCypher(parseGraph())
 
   def parseGraph() : Graph = {
-    val reader = new InputStreamReader(new FileInputStream("/Users/mikeyhu/tmp/code-graphs/core-current.dot"))
+    val reader = new InputStreamReader(new FileInputStream("/Users/mikeyhu/tmp/code-graphs/core-2011.dot"))
 
     val parser = new DotAstParser
     import parser._
@@ -47,16 +36,16 @@ object Dot2Cypher {
   }
 
   def convertToCypher(element: Graph) = {
-
-
+    //ignore NodeStatements for now. The relationships alone give us all the CreateNodes we need.
     val results: Seq[CreateRelationship] = element.statements.flatMap {
-      //unnecessary here
-      //case NodeStatement(nodeId,attributes) => displayNode(nodeId)
       case EdgeStatement(nodeFrom,nodesTo,_) => nodesTo.map { nodeTo => displayRelationship(nodeFrom.asInstanceOf[NodeId],nodeTo._2.asInstanceOf[NodeId])}
       case other => None
     }
+
+    //output all the CreateNodes first, then the relationships
     val setOfCreates: Set[CreateNode] = results.flatMap(cr => Set(cr.nodeFrom,cr.nodeTo)).toSet
     setOfCreates.foreach(println(_))
+
     results.foreach(println(_))
   }
 
@@ -67,17 +56,4 @@ object Dot2Cypher {
   def displayRelationship(nodeFrom:NodeId, nodeTo:NodeId) = {
     CreateRelationship(CreateNode(nodeFrom.id),"EXTENDS",CreateNode(nodeTo.id))
   }
-
-  implicit def IDtoString(id : ID) : String = {
-    id match {
-      case Identifier(value) => value
-    }
-  }
-
-  implicit def NodetoString(node : NodeStatement) : String = {
-    node match {
-      case NodeStatement(nodeId,_) => nodeId.id
-    }
-  }
-
 }
